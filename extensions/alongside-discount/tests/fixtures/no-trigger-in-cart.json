@@ -1,0 +1,44 @@
+{
+  "payload": {
+    "export": "cart-lines-discounts-generate-run",
+    "target": "cart.lines.discounts.generate.run",
+    "input": {
+      "cart": {
+        "lines": [
+          {
+            "id": "gid://shopify/CartLine/1",
+            "quantity": 1,
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "product": {
+                "id": "gid://shopify/Product/2001"
+              }
+            }
+          }
+        ]
+      },
+      "discount": {
+        "discountClasses": [
+          "PRODUCT"
+        ],
+        "metafield": {
+          "jsonValue": {
+            "triggerProductIds": [
+              "gid://shopify/Product/1001"
+            ],
+            "offerProductIds": [
+              "gid://shopify/Product/2001",
+              "gid://shopify/Product/2002"
+            ],
+            "discountType": "percentage",
+            "discountValue": "15.0",
+            "message": "Add-on offer: 15% off"
+          }
+        }
+      }
+    },
+    "output": {
+      "operations": []
+    }
+  }
+}
