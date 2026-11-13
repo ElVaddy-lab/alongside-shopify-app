@@ -1,0 +1,13 @@
+{
+  "alongside": {
+    "add": "Add",
+    "added": "Added to cart.",
+    "error": "Couldn't add to cart. Please try again.",
+    "regular_price": "Regular price",
+    "sale_price": "Sale price",
+    "percent_off": "{{ value }}% off",
+    "amount_off": "{{ amount }} off",
+    "off_with": "{{ discount }} with {{ product }}",
+    "editor_empty": "Alongside: no active offer uses this product as a trigger. Create one in the Alongside app."
+  }
+}

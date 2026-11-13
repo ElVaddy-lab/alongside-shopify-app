@@ -1,0 +1,20 @@
+{
+  "blocks": {
+    "product_offers": {
+      "name": "Add-on offers",
+      "settings": {
+        "show_images": "Show product images"
+      }
+    },
+    "cart_offers": {
+      "name": "Add-on offers in cart",
+      "settings": {
+        "show_images": "Show product images",
+        "cart_anchor": {
+          "label": "Cart form selector (other themes)",
+          "info": "Leave empty for Horizon and Dawn. For other themes, enter a CSS selector of the cart form; offers are inserted after it."
+        }
+      }
+    }
+  }
+}

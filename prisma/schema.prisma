@@ -9,8 +9,10 @@ generator client {
 // enough when changing adapters.
 // See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
-  provider = "sqlite"
-  url      = "file:dev.sqlite"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // Neon: pooled URL for the app, direct URL for migrations
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 model Session {

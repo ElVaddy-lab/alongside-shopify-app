@@ -1,0 +1,16 @@
+# Never upload local secrets or test sessions to Vercel
+.env
+.env.*
+e2e/.auth/
+
+# Local-only artefacts
+.shopify/
+prisma/dev.sqlite*
+build/
+test-results/
+playwright-report/
+notes/perf/*-*.json
+extensions/*/dist/
+extensions/*/generated/
+node_modules/
+case/

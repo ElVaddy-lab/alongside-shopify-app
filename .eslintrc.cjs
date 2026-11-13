@@ -19,7 +19,8 @@ module.exports = {
     commonjs: true,
     es6: true,
   },
-  ignorePatterns: ["!**/.server", "!**/.client"],
+  // The theme extension's script is built (minified) from storefront/alongside.js.
+  ignorePatterns: ["!**/.server", "!**/.client", "extensions/alongside-theme/assets/alongside.js"],
 
   // Base config
   extends: ["eslint:recommended"],
@@ -85,6 +86,7 @@ module.exports = {
         "shopify.server.{js,ts}",
         "**/*.server.{js,ts}",
         "extensions/*/tests/**/*.{js,ts}",
+        "scripts/**/*.{js,mjs}",
       ],
       env: {
         node: true,

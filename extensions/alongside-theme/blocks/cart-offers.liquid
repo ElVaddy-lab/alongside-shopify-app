@@ -1,0 +1,51 @@
+{%- comment -%}
+  App embed: offers in the cart drawer and on the cart page.
+  Every offer shown in the cart is rendered once into an inert <template>;
+  alongside.js reads the cart and inserts the offers whose trigger product is
+  in it, after the theme's cart form. Prices are rendered here, from the same
+  metaobject as the discount function's configuration.
+{%- endcomment -%}
+{%- liquid
+  assign offers = shop.metaobjects['$app:upsell_offer'].values
+-%}
+{%- render 'alongside-styles' -%}
+<div
+  hidden
+  data-alongside-cart-source
+  data-anchor="{{ block.settings.cart_anchor | escape }}"
+  data-added="{{ 'alongside.added' | t | escape }}"
+  data-error="{{ 'alongside.error' | t | escape }}"
+>
+  {%- for offer in offers -%}
+    {%- if offer.show_in_cart.value -%}
+      <template
+        data-alongside-cart-offer
+        data-triggers="{{ offer.trigger_products.value | map: 'id' | join: ',' }}"
+      >
+        {%- render 'alongside-offer', offer: offer, context: 'cart', show_images: block.settings.show_images -%}
+      </template>
+    {%- endif -%}
+  {%- endfor -%}
+</div>
+
+{% schema %}
+{
+  "name": "t:blocks.cart_offers.name",
+  "target": "body",
+  "javascript": "alongside.js",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "show_images",
+      "label": "t:blocks.cart_offers.settings.show_images",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "cart_anchor",
+      "label": "t:blocks.cart_offers.settings.cart_anchor.label",
+      "info": "t:blocks.cart_offers.settings.cart_anchor.info"
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,57 @@
+{%- liquid
+  assign offers = shop.metaobjects['$app:upsell_offer'].values
+  assign rendered = 0
+-%}
+{%- render 'alongside-styles' -%}
+<div
+  class="alongside-root"
+  data-alongside-root
+  data-added="{{ 'alongside.added' | t | escape }}"
+  data-error="{{ 'alongside.error' | t | escape }}"
+>
+  {%- for offer in offers -%}
+    {%- unless offer.show_on_product.value -%}
+      {%- continue -%}
+    {%- endunless -%}
+    {%- assign is_trigger = false -%}
+    {%- for trigger in offer.trigger_products.value -%}
+      {%- if trigger.id == product.id -%}
+        {%- assign is_trigger = true -%}
+        {%- break -%}
+      {%- endif -%}
+    {%- endfor -%}
+    {%- if is_trigger -%}
+      {%- assign rendered = rendered | plus: 1 -%}
+      {%- render 'alongside-offer',
+        offer: offer,
+        context: 'product',
+        exclude_product_id: product.id,
+        with_title: product.title,
+        show_images: block.settings.show_images
+      -%}
+    {%- endif -%}
+  {%- endfor -%}
+
+  {%- if rendered == 0 and request.design_mode -%}
+    <p class="alongside__editor-note">{{ 'alongside.editor_empty' | t }}</p>
+  {%- endif -%}
+</div>
+
+{% schema %}
+{
+  "name": "t:blocks.product_offers.name",
+  "target": "content",
+  "enabled_on": {
+    "templates": ["product"]
+  },
+  "javascript": "alongside.js",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "show_images",
+      "label": "t:blocks.product_offers.settings.show_images",
+      "default": true
+    }
+  ]
+}
+{% endschema %}

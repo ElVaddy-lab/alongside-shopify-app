@@ -1,237 +1,130 @@
-# Shopify App Template - React Router
+# Alongside — cart add-on offers for Shopify (demo app)
 
-This is a template for building a [Shopify app](https://shopify.dev/docs/apps/getting-started) using [React Router](https://reactrouter.com/). It was forked from the [Shopify Remix app template](https://github.com/Shopify/shopify-app-template-remix) and converted to React Router.
+A portfolio demo: a custom Shopify app that replaces a paid "frequently bought together / cart upsell" app. A merchant pairs a product with up to three add-ons and a discount; shoppers see the offer on the product page and in the cart, and a **Shopify Function** applies the price in the cart and at checkout.
 
-Rather than cloning this repo, follow the [Quick Start steps](https://github.com/Shopify/shopify-app-template-react-router#quick-start).
+It has the three parts such projects usually need: an **embedded admin** (React Router + Polaris web components), a **theme app extension** (a product page block and a cart app embed) and a **Discount Function**.
 
-Visit the [`shopify.dev` documentation](https://shopify.dev/docs/api/shopify-app-react-router) for more details on the React Router app package.
+For store staff: [STAFF-GUIDE.md](STAFF-GUIDE.md) — create, change and turn off offers.
 
-## Upgrading from Remix
+![Product page offer, cart drawer add-on and checkout discount](docs/alongside-demo.gif)
 
-If you have an existing Remix app that you want to upgrade to React Router, please follow the [upgrade guide](https://github.com/Shopify/shopify-app-template-react-router/wiki/Upgrading-from-Remix). Otherwise, please follow the quick start guide below.
+> Demo: the store (Ostiv, a fictional bag brand) and its products are made up; orders are not fulfilled. No usage, conversion or revenue figures are claimed — the numbers below are tests and measurements only.
 
-## Quick start
+## What it does
 
-### Prerequisites
+- **Offers in the admin.** Name, a heading for shoppers, trigger products and 1–3 add-ons (Shopify resource picker), percentage or fixed amount, where to show it. Turn on / off, delete with confirmation. Saving writes two things from the same form: a metaobject for the storefront and an automatic discount for checkout.
+- **Product page block.** On a trigger product the add-ons are listed with the regular and the offer price ("15% off with Roll-Top" — the discount needs the trigger in the cart). Variant picker when a product has variants.
+- **Cart embed.** In the cart drawer and on the cart page, offers whose trigger is in the cart, without the add-ons already added. Works with Horizon and Dawn out of the box; other themes set a CSS selector in the embed settings.
+- **Discount Function.** Each offered product is discounted on at most as many units as there are trigger units (1 backpack → 1 discounted sleeve). Shown as "Complete your setup: 15% off" in the cart and at checkout.
+- **Add to cart** goes through Shopify's standard storefront actions (`Shopify.actions.updateCart`), so the theme refreshes its own cart; without them — or without JavaScript — each add-on is a plain `/cart/add` form.
 
-Before you begin, you'll need to [download and install the Shopify CLI](https://shopify.dev/docs/apps/tools/cli/getting-started) if you haven't already.
+## How it works
 
-### Setup
-
-```shell
-shopify app init --template=https://github.com/Shopify/shopify-app-template-react-router
+```mermaid
+flowchart LR
+  admin["Admin<br/>(React Router on Vercel)"] -- metaobjectCreate --> mo["$app:upsell_offer<br/>metaobject"]
+  admin -- discountAutomaticAppCreate --> disc["Automatic discount<br/>+ JSON config metafield"]
+  mo -- Liquid --> block["Product block /<br/>cart embed"]
+  block -- "Shopify.actions.updateCart<br/>or /cart/add" --> cart["Cart"]
+  disc --> fn["Discount Function<br/>(TypeScript → Wasm)"]
+  cart --> fn
+  fn -- productDiscountsAdd --> checkout["Cart & checkout price"]
 ```
 
-### Local Development
+- **The storefront never calls the app server.** Offers and prices are rendered in Liquid from the app-owned metaobject, so the widget keeps working if the admin is down or asleep.
+- **One source for the price.** The metaobject and the discount's JSON configuration are built from the same draft; a contract test checks that the function accepts exactly what the admin writes.
+- **The database holds only the shop session** (Prisma + Postgres). Offers live in Shopify.
 
-```shell
-shopify app dev
+## Stack
+
+- Shopify CLI 5, React Router 7 app template, `@shopify/shopify-app-react-router` 4, Admin GraphQL API 2026-10, Polaris web components 2, App Bridge
+- Shopify Functions: Discount Function API 2026-10 in TypeScript (Javy → WebAssembly)
+- Theme app extension: Liquid, app-owned metaobjects, standard storefront actions and events, vanilla JS (esbuild)
+- Prisma + Postgres (Neon), Vercel (`@vercel/react-router`)
+- Vitest, `@shopify/shopify-function-test-helpers`, Playwright, axe-core, Lighthouse
+
+## Project layout
+
+| Path | What's there |
+|---|---|
+| `app/routes/` | Admin pages: offer list (`app._index.tsx`), create / edit form (`app.offers.$id.tsx`), webhooks (uninstall, scopes, privacy compliance) |
+| `app/models/offer.ts` | Pure offer logic with unit tests: form parsing and validation, metaobject fields, discount input, function config |
+| `app/models/offers.server.ts` | Admin GraphQL: create / update / enable / delete an offer (discount + metaobject), products for the list |
+| `app/components/ProductPicker.tsx` | Resource picker field that works with the contextual save bar |
+| `extensions/alongside-discount/` | Discount Function: input query, logic, unit tests, Wasm fixture tests (one recorded from a real cart) |
+| `extensions/alongside-theme/` | Theme app extension: `blocks/product-offers.liquid`, `blocks/cart-offers.liquid` (app embed), `snippets/` (offer card, inline styles), built `assets/alongside.js` |
+| `storefront/alongside.js` | Readable source of the storefront script (minified into the extension) |
+| `e2e/` | Playwright: product page, cart drawer and page, checkout, no-JS, axe — on two themes |
+| `scripts/perf.mjs` | Lighthouse before / after on a product page |
+| `scripts/demo/` | Reproducible overview video: Playwright drives the admin and storefront, DevTools screencast records, ffmpeg adds captions |
+| `shopify.app.toml` / `shopify.app.production.toml` | App config: scopes, metaobject definition, webhooks — development and production (Vercel) |
+| `STAFF-GUIDE.md` | Guide for store staff: create, change, turn off an offer; what to check when it does not show |
+| `notes/` | Build notes per stage (in Ukrainian) |
+
+## Run locally
+
+Requirements: Node 22, a Shopify Partner / Dev Dashboard account and a development store, a Postgres database.
+
+```bash
+npm install
+shopify app config link              # link to your app (writes shopify.app.toml)
+echo DATABASE_URL=... >> .env         # Postgres for sessions
+echo DATABASE_URL_UNPOOLED=... >> .env
+npx prisma migrate deploy
+npm run dev                          # = shopify app dev; builds the storefront script first
 ```
 
-Press P to open the URL to your app. Once you click install, you can start development.
-
-Local development is powered by [the Shopify CLI](https://shopify.dev/docs/apps/tools/cli). It logs into your account, connects to an app, provides environment variables, updates remote config, creates a tunnel and provides commands to generate extensions.
-
-### Authenticating and querying data
-
-To authenticate and query data you can use the `shopify` const that is exported from `/app/shopify.server.js`:
-
-```js
-export async function loader({ request }) {
-  const { admin } = await shopify.authenticate.admin(request);
-
-  const response = await admin.graphql(`
-    {
-      products(first: 25) {
-        nodes {
-          title
-          description
-        }
-      }
-    }`);
-
-  const {
-    data: {
-      products: { nodes },
-    },
-  } = await response.json();
-
-  return nodes;
-}
-```
-
-This template comes pre-configured with examples of:
-
-1. Setting up your Shopify app in [/app/shopify.server.ts](https://github.com/Shopify/shopify-app-template-react-router/blob/main/app/shopify.server.ts)
-2. Querying data using Graphql. Please see: [/app/routes/app.\_index.tsx](https://github.com/Shopify/shopify-app-template-react-router/blob/main/app/routes/app._index.tsx).
-3. Responding to webhooks. Please see [/app/routes/webhooks.tsx](https://github.com/Shopify/shopify-app-template-react-router/blob/main/app/routes/webhooks.app.uninstalled.tsx).
-4. Using metafields, metaobjects, and declarative custom data definitions. Please see [/app/routes/app.\_index.tsx](https://github.com/Shopify/shopify-app-template-react-router/blob/main/app/routes/app._index.tsx) and [shopify.app.toml](https://github.com/Shopify/shopify-app-template-react-router/blob/main/shopify.app.toml).
-
-Please read the [documentation for @shopify/shopify-app-react-router](https://shopify.dev/docs/api/shopify-app-react-router) to see what other API's are available.
-
-## Shopify Dev MCP
-
-This template is configured with the Shopify Dev MCP. This instructs [Cursor](https://cursor.com/), [GitHub Copilot](https://github.com/features/copilot) and [Claude Code](https://claude.com/product/claude-code) and [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) to use the Shopify Dev MCP.
-
-For more information on the Shopify Dev MCP please read [the documentation](https://shopify.dev/docs/apps/build/devmcp).
-
-## Deployment
-
-### Application Storage
-
-This template uses [Prisma](https://www.prisma.io/) to store session data, by default using an [SQLite](https://www.sqlite.org/index.html) database.
-The database is defined as a Prisma schema in `prisma/schema.prisma`.
-
-This use of SQLite works in production if your app runs as a single instance.
-The database that works best for you depends on the data your app needs and how it is queried.
-Here’s a short list of databases providers that provide a free tier to get started:
-
-| Database   | Type             | Hosters                                                                                                                                                                                                                                    |
-| ---------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| MySQL      | SQL              | [Digital Ocean](https://www.digitalocean.com/products/managed-databases-mysql), [Planet Scale](https://planetscale.com/), [Amazon Aurora](https://aws.amazon.com/rds/aurora/), [Google Cloud SQL](https://cloud.google.com/sql/docs/mysql) |
-| PostgreSQL | SQL              | [Digital Ocean](https://www.digitalocean.com/products/managed-databases-postgresql), [Amazon Aurora](https://aws.amazon.com/rds/aurora/), [Google Cloud SQL](https://cloud.google.com/sql/docs/postgres)                                   |
-| Redis      | Key-value        | [Digital Ocean](https://www.digitalocean.com/products/managed-databases-redis), [Amazon MemoryDB](https://aws.amazon.com/memorydb/)                                                                                                        |
-| MongoDB    | NoSQL / Document | [Digital Ocean](https://www.digitalocean.com/products/managed-databases-mongodb), [MongoDB Atlas](https://www.mongodb.com/atlas/database)                                                                                                  |
-
-To use one of these, you can use a different [datasource provider](https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#datasource) in your `schema.prisma` file, or a different [SessionStorage adapter package](https://github.com/Shopify/shopify-api-js/blob/main/packages/shopify-api/docs/guides/session-storage.md).
-
-### Build
-
-Build the app by running the command below with the package manager of your choice:
-
-Using yarn:
-
-```shell
-yarn build
-```
-
-Using npm:
-
-```shell
-npm run build
-```
-
-Using pnpm:
-
-```shell
-pnpm run build
-```
-
-## Hosting
-
-When you're ready to set up your app in production, you can follow [our deployment documentation](https://shopify.dev/docs/apps/launch/deployment) to host it externally. From there, you have a few options:
-
-- [Google Cloud Run](https://shopify.dev/docs/apps/launch/deployment/deploy-to-google-cloud-run): This tutorial is written specifically for this example repo, and is compatible with the extended steps included in the subsequent [**Build your app**](tutorial) in the **Getting started** docs. It is the most detailed tutorial for taking a React Router-based Shopify app and deploying it to production. It includes configuring permissions and secrets, setting up a production database, and even hosting your apps behind a load balancer across multiple regions.
-- [Fly.io](https://fly.io/docs/js/shopify/): Leverages the Fly.io CLI to quickly launch Shopify apps to a single machine.
-- [Render](https://render.com/docs/deploy-shopify-app): This tutorial guides you through using Docker to deploy and install apps on a Dev store.
-- [Manual deployment guide](https://shopify.dev/docs/apps/launch/deployment/deploy-to-hosting-service): This resource provides general guidance on the requirements of deployment including environment variables, secrets, and persistent data.
-
-When you reach the step for [setting up environment variables](https://shopify.dev/docs/apps/deployment/web#set-env-vars), you also need to set the variable `NODE_ENV=production`.
-
-## Gotchas / Troubleshooting
-
-### Database tables don't exist
-
-If you get an error like:
-
-```
-The table `main.Session` does not exist in the current database.
-```
-
-Create the database for Prisma. Run the `setup` script in `package.json` using `npm`, `yarn` or `pnpm`.
-
-### Navigating/redirecting breaks an embedded app
-
-Embedded apps must maintain the user session, which can be tricky inside an iFrame. To avoid issues:
-
-1. Use `Link` from `react-router` or `@shopify/polaris`. Do not use `<a>`.
-2. Use `redirect` returned from `authenticate.admin`. Do not use `redirect` from `react-router`
-3. Use `useSubmit` from `react-router`.
-
-This only applies if your app is embedded, which it will be by default.
-
-### Webhooks: shop-specific webhook subscriptions aren't updated
-
-If you are registering webhooks in the `afterAuth` hook, using `shopify.registerWebhooks`, you may find that your subscriptions aren't being updated.
-
-Instead of using the `afterAuth` hook declare app-specific webhooks in the `shopify.app.toml` file. This approach is easier since Shopify will automatically sync changes every time you run `deploy` (e.g: `npm run deploy`). Please read these guides to understand more:
-
-1. [app-specific vs shop-specific webhooks](https://shopify.dev/docs/apps/build/webhooks/subscribe#app-specific-subscriptions)
-2. [Create a subscription tutorial](https://shopify.dev/docs/apps/build/webhooks/subscribe/get-started?deliveryMethod=https)
-
-If you do need shop-specific webhooks, keep in mind that the package calls `afterAuth` in 2 scenarios:
-
-- After installing the app
-- When an access token expires
-
-During normal development, the app won't need to re-authenticate most of the time, so shop-specific subscriptions aren't updated. To force your app to update the subscriptions, uninstall and reinstall the app. Revisiting the app will call the `afterAuth` hook.
-
-### Webhooks: Admin created webhook failing HMAC validation
-
-Webhooks subscriptions created in the [Shopify admin](https://help.shopify.com/en/manual/orders/notifications/webhooks) will fail HMAC validation. This is because the webhook payload is not signed with your app's secret key.
-
-The recommended solution is to use [app-specific webhooks](https://shopify.dev/docs/apps/build/webhooks/subscribe#app-specific-subscriptions) defined in your toml file instead. Test your webhooks by triggering events manually in the Shopify admin(e.g. Updating the product title to trigger a `PRODUCTS_UPDATE`).
-
-### Webhooks: Admin object undefined on webhook events triggered by the CLI
-
-When you trigger a webhook event using the Shopify CLI, the `admin` object will be `undefined`. This is because the CLI triggers an event with a valid, but non-existent, shop. The `admin` object is only available when the webhook is triggered by a shop that has installed the app. This is expected.
-
-Webhooks triggered by the CLI are intended for initial experimentation testing of your webhook configuration. For more information on how to test your webhooks, see the [Shopify CLI documentation](https://shopify.dev/docs/apps/tools/cli/commands#webhook-trigger).
-
-### Incorrect GraphQL Hints
-
-By default the [graphql.vscode-graphql](https://marketplace.visualstudio.com/items?itemName=GraphQL.vscode-graphql) extension for will assume that GraphQL queries or mutations are for the [Shopify Admin API](https://shopify.dev/docs/api/admin). This is a sensible default, but it may not be true if:
-
-1. You use another Shopify API such as the storefront API.
-2. You use a third party GraphQL API.
-
-If so, please update [.graphqlrc.ts](https://github.com/Shopify/shopify-app-template-react-router/blob/main/.graphqlrc.ts).
-
-### Using Defer & await for streaming responses
-
-By default the CLI uses a cloudflare tunnel. Unfortunately cloudflare tunnels wait for the Response stream to finish, then sends one chunk. This will not affect production.
-
-To test [streaming using await](https://reactrouter.com/api/components/Await#await) during local development we recommend [localhost based development](https://shopify.dev/docs/apps/build/cli-for-apps/networking-options#localhost-based-development).
-
-### "nbf" claim timestamp check failed
-
-This is because a JWT token is expired. If you are consistently getting this error, it could be that the clock on your machine is not in sync with the server. To fix this ensure you have enabled "Set time and date automatically" in the "Date and Time" settings on your computer.
-
-### Using MongoDB and Prisma
-
-If you choose to use MongoDB with Prisma, there are some gotchas in Prisma's MongoDB support to be aware of. Please see the [Prisma SessionStorage README](https://www.npmjs.com/package/@shopify/shopify-app-session-storage-prisma#mongodb).
-
-### Unable to require(`C:\...\query_engine-windows.dll.node`).
-
-Unable to require(`C:\...\query_engine-windows.dll.node`).
-The Prisma engines do not seem to be compatible with your system.
-
-query_engine-windows.dll.node is not a valid Win32 application.
-
-**Fix:** Set the environment variable:
-
-```shell
-PRISMA_CLIENT_ENGINE_TYPE=binary
-```
-
-This forces Prisma to use the binary engine mode, which runs the query engine as a separate process and can work via emulation on Windows ARM64.
-
-## Resources
-
-React Router:
-
-- [React Router docs](https://reactrouter.com/home)
-
-Shopify:
-
-- [Intro to Shopify apps](https://shopify.dev/docs/apps/getting-started)
-- [Shopify App React Router docs](https://shopify.dev/docs/api/shopify-app-react-router)
-- [Shopify CLI](https://shopify.dev/docs/apps/tools/cli)
-- [Shopify App Bridge](https://shopify.dev/docs/api/app-bridge-library).
-- [Polaris Web Components](https://shopify.dev/docs/api/app-home/polaris-web-components).
-- [App extensions](https://shopify.dev/docs/apps/app-extensions/list)
-- [Shopify Functions](https://shopify.dev/docs/api/functions)
-
-Internationalization:
-
-- [Internationalizing your app](https://shopify.dev/docs/apps/best-practices/internationalization/getting-started)
+`shopify app dev` opens a Cloudflare tunnel; if it is blocked on your network, start your own (`ngrok http 3000`) and pass `--tunnel-url https://<host>:3000`.
+
+Then: open the app in the store admin and create an offer; in the theme editor turn on **App embeds → Add-on offers in cart** and add the **Add-on offers** block to the product template.
+
+## Deploy
+
+1. **Admin** — Vercel with the React Router preset (`react-router.config.ts`, `vercel.json`). Environment variables: `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`, `SCOPES` (from `shopify app env show`), `SHOPIFY_APP_URL`, `DATABASE_URL`, `DATABASE_URL_UNPOOLED`. The build runs `prisma migrate deploy`.
+   ```bash
+   npm run deploy:admin
+   ```
+2. **App version** (config, Function, theme extension) — `shopify.app.production.toml` has the Vercel URL:
+   ```bash
+   npm run build:storefront && npm run deploy
+   ```
+3. Install the app on the store and set up the theme as in *Run locally*.
+
+## Rolling back / switching off
+
+- **One offer:** *Turn off* in the offer list (the discount is deactivated, the metaobject goes to draft and disappears from the storefront).
+- **Storefront only:** in the theme editor turn off the app embed and remove the block — prices at checkout stop changing only when the offers are turned off.
+- **App code:** Dev Dashboard → Versions → release the previous version; Vercel → promote the previous deployment (`vercel rollback`).
+- **Everything:** uninstall the app — Shopify removes its discounts and the metaobject definition. Offer entries are kept for a while and come back if the app is reinstalled soon; their discounts do not, so delete and recreate such offers.
+
+## Scripts
+
+| Script | What it does |
+|---|---|
+| `npm run dev` | `shopify app dev` (admin, Function and theme extension with hot reload) |
+| `npm run build:storefront` | Minify `storefront/alongside.js` into the theme extension |
+| `npm test` | Admin unit tests (Vitest) |
+| `npm test` in `extensions/alongside-discount` | Function unit tests and Wasm fixture tests |
+| `npm run test:e2e` | Playwright on the dev store (two themes); the first run opens a window to unlock the storefront password once |
+| `npm run perf -- <beforeThemeId> <afterThemeId> [runs]` | Lighthouse, mobile, median of runs |
+| `npm run typecheck` / `npm run lint` | TypeScript and ESLint |
+| `npm run deploy` / `npm run deploy:admin` | Release an app version / deploy the admin |
+
+## Quality
+
+Measured on 13 Nov 2026.
+
+- **Tests:** 21 admin unit tests; 13 function unit tests + 5 Wasm fixture tests; 7 end-to-end tests × 2 themes (Horizon copy and stock Dawn 16), green on the released version. Guard tests were checked by mutating the code they protect.
+- **Accessibility:** axe (WCAG 2.2 A/AA) — 0 violations in the product block and the cart offer on both themes. Named buttons ("Add Rain Cover, 15% off with Roll-Top"), labelled prices, `role="status"` announcements, focus kept in the cart after it re-renders, 44 px targets, `prefers-reduced-motion`.
+- **Discount Function:** 0.29–0.41 million instructions on real carts (limit 11 million); 7.6 million on a 200-line cart (69 %); 3.7 KB Wasm (limit 256 KiB).
+- **Storefront cost** (Lighthouse 13, mobile, product page, 5 runs, median, live theme vs. its copy with Alongside): Performance 37 → 37, LCP 7.8 s → 7.8 s. Alongside adds **one request** (`alongside.js`, 4.7 KB, 2.1 KB gzip, deferred), **no render-blocking resources** and **no requests to the app server**; its script does not appear in Lighthouse's bootup-time list (under 50 ms). The low Performance score is the store page with Shopify's platform scripts on a throttled mobile profile, the same with and without the app.
+
+## Known limitations
+
+- Triggers are products, not collections.
+- Liquid reads up to 50 offers; Shopify allows up to 25 active automatic app discounts per store.
+- Offers do not stack with other product discounts on the same add-on (on purpose: another discount would change the promised price).
+- Fixed-amount discounts are in the store currency; other Shopify Markets currencies were not tested.
+- The function is TypeScript for readability; on very large carts (hundreds of lines) Rust would leave more instruction headroom.
+- After releasing an app version, do not run `shopify app dev clean` on the same store: it removes data and extension references created under the dev preview. Reinstalling the app recovers the definitions.
+- The storefront rate-limits `/cart/add` from one IP; the e2e suite runs in one worker with pauses and retries on HTTP 429.

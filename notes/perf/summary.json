@@ -1,0 +1,35 @@
+{
+  "page": "/products/roll-top",
+  "runs": 5,
+  "date": "2026-11-13T12:20:35.000Z",
+  "before": {
+    "ourRenderBlocking": 0,
+    "score": 37,
+    "a11y": 97,
+    "lcp": 7832.994500000001,
+    "tbt": 6046,
+    "cls": 0.00003952341088212718,
+    "bytes": 2771357,
+    "requests": 323,
+    "ourBytes": 0,
+    "ourRequests": 0,
+    "appServerRequests": 0,
+    "ourScriptMs": 0,
+    "benchmark": 676.5
+  },
+  "after": {
+    "ourRenderBlocking": 0,
+    "score": 37,
+    "a11y": 97,
+    "lcp": 7751.8975,
+    "tbt": 6145,
+    "cls": 0.000001963440863186625,
+    "bytes": 2847807,
+    "requests": 346,
+    "ourBytes": 1888,
+    "ourRequests": 1,
+    "appServerRequests": 0,
+    "ourScriptMs": 0,
+    "benchmark": 647
+  }
+}

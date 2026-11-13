@@ -4,6 +4,7 @@ client_id = "bffe3e22be73e7b4f9bf1a385014e409"
 application_url = "https://example.com"
 embedded = true
 name = "Alongside"
+description = "Set by the app: the automatic discount that applies this offer."
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
@@ -15,7 +16,7 @@ scopes = "read_products,write_discounts,write_metaobject_definitions,write_metao
 # Liquid loops return active entries only.
 [metaobjects.app.upsell_offer]
 name = "Upsell offer"
-description = "A product add-on offered in the cart and on the product page, with a discount applied by the Alongside discount function."
+description = "An add-on offered in the cart and on the product page; its discount is applied by the Alongside discount function."
 display_name_field = "title"
 access.admin = "merchant_read_write"
 access.storefront = "public_read"
@@ -23,24 +24,26 @@ capabilities.publishable = true
 
 [metaobjects.app.upsell_offer.fields.title]
 name = "Internal name"
+description = "Shown only in the Alongside admin and in Discounts."
 type = "single_line_text_field"
 required = true
 
 [metaobjects.app.upsell_offer.fields.heading]
 name = "Heading shown to customers"
-description = "For example: Complete your setup"
+description = "Shown to customers above the add-ons and in the discount line, e.g. Complete your setup."
 type = "single_line_text_field"
 required = true
 
 [metaobjects.app.upsell_offer.fields.trigger_products]
 name = "Trigger products"
-description = "The offer appears when one of these products is in the cart or on the page."
+description = "The offer shows when one of these products is in the cart or on its product page."
 type = "list.product_reference"
 required = true
 validations."list.min" = 1
 
 [metaobjects.app.upsell_offer.fields.offer_products]
 name = "Offered products"
+description = "Add-ons offered at the discount (1 to 3)."
 type = "list.product_reference"
 required = true
 validations."list.min" = 1
@@ -48,6 +51,7 @@ validations."list.max" = 3
 
 [metaobjects.app.upsell_offer.fields.discount_type]
 name = "Discount type"
+description = "percentage or fixed_amount (off each add-on unit)."
 type = "single_line_text_field"
 required = true
 validations.choices = ["percentage", "fixed_amount"]
@@ -61,15 +65,17 @@ validations.min = 0
 
 [metaobjects.app.upsell_offer.fields.show_on_product]
 name = "Show on product page"
+description = "Show the offer in the Alongside block on the trigger product page."
 type = "boolean"
 
 [metaobjects.app.upsell_offer.fields.show_in_cart]
 name = "Show in cart"
+description = "Show the offer in the cart (Alongside app embed)."
 type = "boolean"
 
 [metaobjects.app.upsell_offer.fields.discount_id]
 name = "Automatic discount ID"
-description = "Set by the app. The discount that applies this offer's price."
+description = "Set by the app: the automatic discount that applies this offer."
 type = "single_line_text_field"
 
 [webhooks]

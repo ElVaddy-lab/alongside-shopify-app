@@ -1,0 +1,159 @@
+{%- doc -%}
+  One Alongside offer: heading and up to three add-ons, each with its own small
+  add-to-cart form. Prices are worked out here from the same metaobject the
+  admin saves next to the discount function's configuration, so the price shown
+  is the price the function applies at checkout.
+
+  @param {object} offer - `$app:upsell_offer` metaobject entry
+  @param {string} context - 'product' or 'cart'
+  @param {string} [exclude_product_id] - product not to offer (the one on the page)
+  @param {boolean} [show_images] - show product images (default true)
+  @param {string} [with_title] - trigger product title; the discount needs it in
+    the cart, so on the product page the label says "15% off with Roll-Top"
+{%- enddoc -%}
+
+{%- liquid
+  assign is_percent = false
+  if offer.discount_type.value == 'percentage'
+    assign is_percent = true
+  endif
+  assign value = offer.discount_value.value
+
+  if is_percent
+    assign keep_percent = 100 | minus: value
+    assign value_rounded = value | round
+    if value_rounded == value
+      assign percent_label = value_rounded
+    else
+      assign percent_label = value
+    endif
+    assign discount_label = 'alongside.percent_off' | t: value: percent_label
+  else
+    assign amount_off = value | times: 100 | round
+    assign amount_label = amount_off | money
+    assign discount_label = 'alongside.amount_off' | t: amount: amount_label
+  endif
+  if with_title != blank
+    assign discount_label = 'alongside.off_with' | t: discount: discount_label, product: with_title
+  endif
+
+  assign heading_id = 'alongside-' | append: context | append: '-' | append: offer.system.handle
+
+  assign items_available = 0
+  for item in offer.offer_products.value
+    if item.id != exclude_product_id and item.available
+      assign items_available = items_available | plus: 1
+    endif
+  endfor
+-%}
+
+{%- if items_available > 0 -%}
+
+<section
+  class="alongside"
+  aria-labelledby="{{ heading_id }}"
+  data-alongside-offer="{{ offer.system.handle }}"
+  data-context="{{ context }}"
+>
+  {%- comment -%} In the cart the drawer / page title is the h2. {%- endcomment -%}
+  {%- if context == 'cart' -%}
+    <h3 class="alongside__heading" id="{{ heading_id }}">{{ offer.heading.value | escape }}</h3>
+  {%- else -%}
+    <h2 class="alongside__heading" id="{{ heading_id }}">{{ offer.heading.value | escape }}</h2>
+  {%- endif -%}
+  <ul class="alongside__list" role="list">
+    {%- for item in offer.offer_products.value -%}
+      {%- if item.id == exclude_product_id or item.available == false -%}
+        {%- continue -%}
+      {%- endif -%}
+      {%- liquid
+        assign variant = item.selected_or_first_available_variant
+        assign form_id = heading_id | append: '-' | append: item.id
+      -%}
+      <li class="alongside__item" data-product-id="{{ item.id }}">
+        {%- if show_images != false and item.featured_image -%}
+          {{
+            item.featured_image
+            | image_url: width: 160
+            | image_tag:
+              class: 'alongside__image',
+              width: 80,
+              height: 80,
+              loading: 'lazy',
+              alt: ''
+          }}
+        {%- endif -%}
+        <form
+          class="alongside__form"
+          method="post"
+          action="{{ routes.cart_add_url }}"
+          data-alongside-form
+          id="{{ form_id }}"
+        >
+          <input type="hidden" name="properties[_alongside_offer]" value="{{ offer.system.handle }}">
+          <a class="alongside__title" href="{{ item.url }}">{{ item.title | escape }}</a>
+
+          {%- capture price_html -%}
+            {%- liquid
+              if is_percent
+                assign sale = variant.price | times: keep_percent | divided_by: 100.0 | round
+              else
+                assign sale = variant.price | minus: amount_off | at_least: 0
+              endif
+            -%}
+            <s class="alongside__compare"
+              ><span class="alongside__visually-hidden">{{ 'alongside.regular_price' | t }} </span
+              >{{- variant.price | money -}}</s
+            >
+            <span class="alongside__sale"
+              ><span class="alongside__visually-hidden">{{ 'alongside.sale_price' | t }} </span
+              >{{- sale | money -}}</span
+            >
+          {%- endcapture -%}
+          <p class="alongside__price" data-alongside-price>{{ price_html }}</p>
+          <p class="alongside__badge">{{ discount_label }}</p>
+
+          {%- if item.has_only_default_variant -%}
+            <input type="hidden" name="id" value="{{ variant.id }}">
+          {%- else -%}
+            <label class="alongside__label" for="{{ form_id }}-variant">
+              {{- item.options | join: ' / ' -}}
+            </label>
+            <select class="alongside__select" id="{{ form_id }}-variant" name="id" data-alongside-variant>
+              {%- for option in item.variants -%}
+                {%- if option.available -%}
+                  {%- liquid
+                    if is_percent
+                      assign option_sale = option.price | times: keep_percent | divided_by: 100.0 | round
+                    else
+                      assign option_sale = option.price | minus: amount_off | at_least: 0
+                    endif
+                  -%}
+                  <option
+                    value="{{ option.id }}"
+                    data-compare="{{ option.price | money | escape }}"
+                    data-sale="{{ option_sale | money | escape }}"
+                    {% if option.id == variant.id %}
+                      selected
+                    {% endif %}
+                  >
+                    {{- option.title | escape -}}
+                  </option>
+                {%- endif -%}
+              {%- endfor -%}
+            </select>
+          {%- endif -%}
+
+          <button class="alongside__button" type="submit" name="add">
+            {{- 'alongside.add' | t -}}
+            <span class="alongside__visually-hidden">
+              {{ item.title | escape }}, {{ discount_label }}</span
+            >
+          </button>
+        </form>
+      </li>
+    {%- endfor -%}
+  </ul>
+  <p class="alongside__status" role="status" data-alongside-status></p>
+</section>
+{%- endif -%}

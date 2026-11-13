@@ -1,0 +1,78 @@
+{
+  "payload": {
+    "export": "cart-lines-discounts-generate-run",
+    "target": "cart.lines.discounts.generate.run",
+    "input": {
+      "cart": {
+        "lines": [
+          {
+            "id": "gid://shopify/CartLine/0",
+            "quantity": 1,
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "product": {
+                "id": "gid://shopify/Product/10197906653405"
+              }
+            }
+          },
+          {
+            "id": "gid://shopify/CartLine/1",
+            "quantity": 1,
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "product": {
+                "id": "gid://shopify/Product/10197908390109"
+              }
+            }
+          }
+        ]
+      },
+      "discount": {
+        "discountClasses": [
+          "PRODUCT"
+        ],
+        "metafield": {
+          "jsonValue": {
+            "triggerProductIds": [
+              "gid://shopify/Product/10197908390109"
+            ],
+            "offerProductIds": [
+              "gid://shopify/Product/10197906620637",
+              "gid://shopify/Product/10197906653405"
+            ],
+            "discountType": "percentage",
+            "discountValue": "15.0",
+            "message": "Complete your setup: 15% off"
+          }
+        }
+      }
+    },
+    "output": {
+      "operations": [
+        {
+          "productDiscountsAdd": {
+            "candidates": [
+              {
+                "message": "Complete your setup: 15% off",
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/0",
+                      "quantity": 1
+                    }
+                  }
+                ],
+                "value": {
+                  "percentage": {
+                    "value": "15.0"
+                  }
+                }
+              }
+            ],
+            "selectionStrategy": "FIRST"
+          }
+        }
+      ]
+    }
+  }
+}
